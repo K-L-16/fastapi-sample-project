@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from routers import news,users #导入router
 from fastapi.middleware.cors import CORSMiddleware
+
+from utils.exception_handlers import register_exception_handlers
+
 app = FastAPI()
+
+register_exception_handlers(app)  # 注册异常处理器
 
 #添加中间加（用于解决cors前端跨域请求）
 app.add_middleware(
