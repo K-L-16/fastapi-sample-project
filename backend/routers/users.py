@@ -32,3 +32,15 @@ async def register(user_data: UserRequest,  db:AsyncSession = Depends(get_db)): 
     # }
     response_data = UserAuthResponse(token=token,user_info=UserInfoResponse.model_validate(user))
     return success_response(message="用户注册成功", data=response_data)
+
+
+@router.post("/login")
+async def login(user_data: UserRequest, db: AsyncSession = Depends(get_db)):
+    #登录逻辑：验证用户名是否存在 -》 验证密码是否正确 -》生成token -》 响应结果
+    user = await users.authenticate_user(db, user_data.username, user_data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="用户或密码错误")
+    #生成token
+    token = await users.create_token(db, user.id)
+    response_data = UserAuthResponse(token=token,user_info=UserInfoResponse.model_validate(user))
+    return success_response(message="用户登录成功", data=response_data)
