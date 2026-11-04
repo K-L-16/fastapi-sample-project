@@ -1,12 +1,13 @@
 #根据用户名查询数据库
 import uuid
 from datetime import datetime, timedelta
-from idlelib.debugger_r import restart_subprocess_debugger
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from models.users import User, UserToken
-from schemas.users import UserRequest
+from schemas.users import UserRequest, UserUpdateRequest
+from utils import secutity
 from utils.secutity import get_hash_password, verify_password
 
 
@@ -54,3 +55,47 @@ async def authenticate_user(db:AsyncSession, username:str, password:str):
     if not verify_password(password, user.password):
         return None
     return user
+
+#根据token查询用户信息
+async def get_user_by_token(db:AsyncSession, token:str):
+    #查询token是否存在且未过期
+    stmt = select(UserToken).where(UserToken.token == token, UserToken.expires_at > datetime.now())
+    result = await db.execute(stmt)
+    db_token = result.scalar_one_or_none()
+    if db_token is None:
+        return None
+    #查询用户信息
+    stmt = select(User).where(User.id == db_token.user_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+#跟新用户信息
+async def update_user(db:AsyncSession, username:str, user_data: UserUpdateRequest):
+    #没有设置值的不更新
+    query = update(User).where(User.username == username).values(**user_data.model_dump(
+        exclude_none=True,
+        exclude_unset=True
+    ))
+    result = await db.execute(query)
+    await db.commit()
+    #检查更新
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    #获取更新后的用户信息
+    update_user = await get_user_by_username(db, username)
+    return update_user
+
+#修改密码
+async def change_password(db:AsyncSession, user:User, old_password:str, new_password:str):
+    if not verify_password(old_password, user.password):
+         return False
+    hashed_new_password = get_hash_password(new_password)
+    user.password = hashed_new_password
+    #更新
+    #这里用add是因为user是一个已经存在的对象，add会将其标记为已修改状态，然后commit会将修改保存到数据库中，
+    #如果直接使用update语句，可能会导致一些问题，比如无法触发ORM的事件机制，或者无法正确处理关联关系等，所以这里使用add是更安全和可靠的方式
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return True

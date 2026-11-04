@@ -33,3 +33,15 @@ class UserAuthResponse(BaseModel):
         populate_by_name=True, #aliaz
         from_attributes=True #允许从orm属性中取值
     )
+
+#更新用户信息新的模型类
+class UserUpdateRequest(BaseModel):
+    nickname: str
+    avatar:str = None
+    gender:str = None
+    bio:str = None
+    phone: str = None
+
+class UserChangePasswordRequest(BaseModel):
+    old_password: str = Field(...,alias="oldPassword", description="旧密码")
+    new_password: str = Field(...,alias="newPassword", description="新密码")
