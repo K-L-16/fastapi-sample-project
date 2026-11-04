@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import news,users #导入router
+from routers import news, users, favorite  # 导入router
 from fastapi.middleware.cors import CORSMiddleware
 
 from utils.exception_handlers import register_exception_handlers
@@ -24,4 +24,5 @@ async def root():
 #NOTE:注册路由
 app.include_router(news.router)
 app.include_router(users.router)
+app.include_router(favorite.router)
 
